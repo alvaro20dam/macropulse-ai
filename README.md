@@ -8,7 +8,8 @@
 
 <br />
 
-C:\Users\admin\Desktop\macropulse-ai\dashboard.png
+
+<img width="1260" height="843" alt="dashboard" src="https://github.com/user-attachments/assets/ec5351a5-f0be-4d1e-b861-9d31836f8c3e" />
 
 <br />
 
