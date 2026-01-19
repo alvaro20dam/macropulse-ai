@@ -34,28 +34,31 @@ interface PredictionData {
   direction: "UP" | "DOWN";
 }
 
-// 1. New Interface for Risk Data
 interface RiskData {
   yield_spread: number;
   level: string;
   color: "red" | "yellow" | "green";
 }
 
+// --- CONFIGURATION ---
+// The URL of your live Backend on Render
+const API_BASE_URL = "https://macropulse-backend.onrender.com";
+
 export default function Dashboard() {
   const [data, setData] = useState<InflationData[]>([]);
   const [prediction, setPrediction] = useState<PredictionData | null>(null);
-  const [risk, setRisk] = useState<RiskData | null>(null); // 2. New State
+  const [risk, setRisk] = useState<RiskData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // 3. Fetch all 3 endpoints safely
+        // We use the new API_BASE_URL here
         const [histRes, predRes, riskRes] = await Promise.all([
-          axios.get("http://127.0.0.1:8000/api/inflation"),
-          axios.get("http://127.0.0.1:8000/api/predict"),
-          axios.get("http://127.0.0.1:8000/api/risk"),
+          axios.get(`${API_BASE_URL}/api/inflation`),
+          axios.get(`${API_BASE_URL}/api/predict`),
+          axios.get(`${API_BASE_URL}/api/risk`),
         ]);
 
         setData(histRes.data);
@@ -63,7 +66,7 @@ export default function Dashboard() {
         setRisk(riskRes.data);
       } catch (err) {
         console.error(err);
-        setError("Failed to connect to Python Backend.");
+        setError("Failed to connect to the Live API.");
       } finally {
         setLoading(false);
       }
@@ -168,7 +171,7 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Card 3: Recession Risk (The New Card) */}
+        {/* Card 3: Recession Risk */}
         <div className="p-6 rounded-2xl bg-slate-900/50 border border-slate-800 backdrop-blur-xl">
           <div className="flex items-center gap-4 mb-4">
             <div
