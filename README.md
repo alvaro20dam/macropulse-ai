@@ -72,6 +72,8 @@ uvicorn main:app --reload
 
 ### 2. Frontend (React)
 
+```bash
 cd frontend
 npm install
 npm run dev
+```
