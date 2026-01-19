@@ -18,6 +18,7 @@ import {
   Brain,
   ArrowUpRight,
   ArrowDownRight,
+  ShieldAlert,
 } from "lucide-react";
 
 interface InflationData {
@@ -33,24 +34,33 @@ interface PredictionData {
   direction: "UP" | "DOWN";
 }
 
+// 1. New Interface for Risk Data
+interface RiskData {
+  yield_spread: number;
+  level: string;
+  color: "red" | "yellow" | "green";
+}
+
 export default function Dashboard() {
   const [data, setData] = useState<InflationData[]>([]);
   const [prediction, setPrediction] = useState<PredictionData | null>(null);
+  const [risk, setRisk] = useState<RiskData | null>(null); // 2. New State
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const histResponse = await axios.get(
-          "http://127.0.0.1:8000/api/inflation",
-        );
-        setData(histResponse.data);
+        // 3. Fetch all 3 endpoints safely
+        const [histRes, predRes, riskRes] = await Promise.all([
+          axios.get("http://127.0.0.1:8000/api/inflation"),
+          axios.get("http://127.0.0.1:8000/api/predict"),
+          axios.get("http://127.0.0.1:8000/api/risk"),
+        ]);
 
-        const predResponse = await axios.get(
-          "http://127.0.0.1:8000/api/predict",
-        );
-        setPrediction(predResponse.data);
+        setData(histRes.data);
+        setPrediction(predRes.data);
+        setRisk(riskRes.data);
       } catch (err) {
         console.error(err);
         setError("Failed to connect to Python Backend.");
@@ -155,6 +165,37 @@ export default function Dashboard() {
                 Random Forest Model
               </p>
             </div>
+          )}
+        </div>
+
+        {/* Card 3: Recession Risk (The New Card) */}
+        <div className="p-6 rounded-2xl bg-slate-900/50 border border-slate-800 backdrop-blur-xl">
+          <div className="flex items-center gap-4 mb-4">
+            <div
+              className={`p-3 rounded-lg ${risk?.color === "red" ? "bg-red-500/10 text-red-400" : "bg-emerald-500/10 text-emerald-400"}`}
+            >
+              <ShieldAlert size={24} />
+            </div>
+            <h3 className="text-lg font-semibold text-slate-200">
+              Recession Risk
+            </h3>
+          </div>
+          {loading || !risk ? (
+            <div className="h-8 w-24 bg-slate-800 animate-pulse rounded" />
+          ) : (
+            <>
+              <div className="text-4xl font-bold text-white">
+                {risk.yield_spread ? risk.yield_spread.toFixed(2) : "0.00"}
+              </div>
+              <div
+                className={`text-sm mt-2 font-medium ${risk.color === "red" ? "text-red-400" : "text-emerald-400"}`}
+              >
+                {risk.level}
+              </div>
+              <p className="text-xs text-slate-500 mt-1">
+                10Y-2Y Treasury Spread
+              </p>
+            </>
           )}
         </div>
 

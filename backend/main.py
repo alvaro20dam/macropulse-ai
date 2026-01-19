@@ -21,28 +21,25 @@ def run_ai_prediction():
     if not os.path.exists(file_path):
         return {"error": "Data not found"}
     
-    # Load Data
     df = pd.read_csv(file_path)
     df['inflation_yoy_pct'] = pd.to_numeric(df['inflation_yoy_pct'], errors='coerce')
     
-    # Feature Engineering
     df['lag_1'] = df['inflation_yoy_pct'].shift(1)
     df['lag_2'] = df['inflation_yoy_pct'].shift(2)
     df['lag_3'] = df['inflation_yoy_pct'].shift(3)
     
     model_df = df.dropna()
-
     X = model_df[['lag_1', 'lag_2', 'lag_3']]
     y = model_df['inflation_yoy_pct']
 
-    # Train Random Forest
     model = RandomForestRegressor(n_estimators=100, random_state=42)
     model.fit(X, y)
 
-    # Predict
-    latest_data = df.iloc[-1][['inflation_yoy_pct', 'lag_1', 'lag_2']].values
-    input_features = latest_data.reshape(1, -1)
-    prediction = model.predict(input_features)[0]
+    # --- FIX: Create a DataFrame for prediction to silence the warning ---
+    latest_vals = df.iloc[-1][['inflation_yoy_pct', 'lag_1', 'lag_2']].values
+    input_df = pd.DataFrame(latest_vals.reshape(1, -1), columns=['lag_1', 'lag_2', 'lag_3'])
+    
+    prediction = model.predict(input_df)[0]
     
     return {
         "model": "Random Forest Regressor",
@@ -61,18 +58,39 @@ def get_inflation_data():
     file_path = "data/historical_inflation.csv"
     if not os.path.exists(file_path):
         return {"error": "Run fetch_data.py first"}
-    
-    # --- FIX IS HERE ---
-    # 1. Read the file
     df = pd.read_csv(file_path)
-    # 2. THEN clean the data (Fixes the UnboundLocalError)
     df = df.where(pd.notnull(df), None)
-    
     return df.to_dict(orient="records")
 
 @app.get("/api/predict")
 def get_prediction():
     try:
         return run_ai_prediction()
+    except Exception as e:
+        return {"error": str(e)}
+
+# --- NEW: RECESSION RISK ENDPOINT ---
+@app.get("/api/risk")
+def get_risk_level():
+    file_path = "data/yield_curve.csv"
+    # Safety Check: If file doesn't exist, return neutral data so app doesn't crash
+    if not os.path.exists(file_path):
+        return {"yield_spread": 0, "level": "Data Missing", "color": "yellow"}
+    
+    try:
+        df = pd.read_csv(file_path, names=["date", "spread"], header=0)
+        latest_spread = df.iloc[-1]['spread']
+        
+        if latest_spread < 0:
+            level = "HIGH (Recession Risk)"
+            color = "red"
+        elif latest_spread < 0.5:
+            level = "Moderate"
+            color = "yellow"
+        else:
+            level = "Low (Healthy)"
+            color = "green"
+            
+        return {"yield_spread": latest_spread, "level": level, "color": color}
     except Exception as e:
         return {"error": str(e)}
