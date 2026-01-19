@@ -8,7 +8,8 @@
 
 <br />
 
-<img src="./dashboard.png" alt="Dashboard Preview" width="800" style="border-radius: 10px; box-shadow: 0px 4px 20px rgba(0,0,0,0.5);">
+
+<img width="1260" height="843" alt="dashboard" src="https://github.com/user-attachments/assets/ec5351a5-f0be-4d1e-b861-9d31836f8c3e" />
 
 <br />
 
