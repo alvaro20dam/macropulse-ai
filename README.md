@@ -12,7 +12,7 @@
 
 <br />
 
-### Real-time Economic Intelligence Dashboard with AI Forecasting
+## Real-time Economic Intelligence Dashboard with AI Forecasting
 
 </div>
 
@@ -31,11 +31,13 @@ Unlike simple visualization tools, **MacroPulse** includes a predictive engine b
 ## 🛠️ Tech Stack
 
 ### **Frontend**
+
 * **Framework:** Next.js 14 (React)
 * **Styling:** Tailwind CSS (Dark Mode UI)
 * **Visualization:** Recharts
 
 ### **Backend**
+
 * **API:** FastAPI (High-performance Python framework)
 * **Data Science:** Pandas, NumPy, Scikit-learn
 * **Data Source:** Federal Reserve Economic Data (FRED) API
@@ -44,16 +46,17 @@ Unlike simple visualization tools, **MacroPulse** includes a predictive engine b
 
 ## ⚡ Key Features
 
-1.  **Real-Time Data Pipeline:** Fetches live CPI and Treasury Bond data.
-2.  **AI Forecast Card:** Predicts next month's inflation rate and direction.
-3.  **Risk Gauge:** Evaluates recession probability.
-4.  **Interactive History:** 20-year interactive timeline.
+1. **Real-Time Data Pipeline:** Fetches live CPI and Treasury Bond data.
+2. **AI Forecast Card:** Predicts next month's inflation rate and direction.
+3. **Risk Gauge:** Evaluates recession probability.
+4. **Interactive History:** 20-year interactive timeline.
 
 ---
 
 ## 🚀 Quick Start
 
 ### 1. Backend (Python)
+
 ```bash
 cd backend
 python -m venv venv
