@@ -66,6 +66,7 @@ python -m venv venv
 pip install -r requirements.txt
 python fetch_data.py
 uvicorn main:app --reload
+```
 
 ---
 
