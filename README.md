@@ -8,7 +8,7 @@
 
 <br />
 
-<img src="./dashboard.png" alt="Dashboard Preview" width="800" style="border-radius: 10px; box-shadow: 0px 4px 20px rgba(0,0,0,0.5);">
+C:\Users\admin\Desktop\macropulse-ai\dashboard.png
 
 <br />
 
