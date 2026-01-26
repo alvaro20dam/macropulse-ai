@@ -1,4 +1,5 @@
 "use client";
+import PhillipsChart from "./components/PhillipsChart";
 
 import { useEffect, useState } from "react";
 import axios from "axios";
@@ -87,7 +88,7 @@ export default function Dashboard() {
     <main className="min-h-screen p-8 max-w-7xl mx-auto space-y-8 bg-slate-950 text-slate-100">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent">
+          <h1 className="text-3xl font-bold bg-linear-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent">
             MacroPulse AI
           </h1>
           <p className="text-slate-400">Real-time Economic Intelligence</p>
@@ -210,7 +211,7 @@ export default function Dashboard() {
               Inflation Trend (2000 - Present)
             </h3>
           </div>
-          <div className="h-[400px] w-full">
+          <div className="h-100 w-full">
             {loading ? (
               <div className="h-full w-full flex items-center justify-center text-slate-500">
                 Loading AI Pipeline...
@@ -254,6 +255,7 @@ export default function Dashboard() {
                 </LineChart>
               </ResponsiveContainer>
             )}
+            <PhillipsChart />
           </div>
         </div>
       </div>

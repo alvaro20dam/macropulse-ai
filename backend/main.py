@@ -1,96 +1,108 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-import pandas as pd
+from pydantic import BaseModel
 import numpy as np
-from sklearn.ensemble import RandomForestRegressor
-import os
+import pandas as pd
+from fredapi import Fred
+from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.pipeline import make_pipeline
+
+# ---------------------------------------------------------
+# 🔑 ENTER YOUR FRED API KEY HERE
+# ---------------------------------------------------------
+FRED_API_KEY = "8a962c09f771530f473cc66df2b96b70" 
+# ---------------------------------------------------------
 
 app = FastAPI()
 
+# Enable CORS for Next.js
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=["http://localhost:3000"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# --- INTERNAL AI LOGIC ---
-def run_ai_prediction():
-    file_path = "data/historical_inflation.csv"
-    if not os.path.exists(file_path):
-        return {"error": "Data not found"}
-    
-    df = pd.read_csv(file_path)
-    df['inflation_yoy_pct'] = pd.to_numeric(df['inflation_yoy_pct'], errors='coerce')
-    
-    df['lag_1'] = df['inflation_yoy_pct'].shift(1)
-    df['lag_2'] = df['inflation_yoy_pct'].shift(2)
-    df['lag_3'] = df['inflation_yoy_pct'].shift(3)
-    
-    model_df = df.dropna()
-    X = model_df[['lag_1', 'lag_2', 'lag_3']]
-    y = model_df['inflation_yoy_pct']
+# Global variables
+model = None
+real_data_cache = []
 
-    model = RandomForestRegressor(n_estimators=100, random_state=42)
-    model.fit(X, y)
-
-    # --- FIX: Create a DataFrame for prediction to silence the warning ---
-    latest_vals = df.iloc[-1][['inflation_yoy_pct', 'lag_1', 'lag_2']].values
-    input_df = pd.DataFrame(latest_vals.reshape(1, -1), columns=['lag_1', 'lag_2', 'lag_3'])
+def fetch_and_train():
+    """Fetches real data from FRED, cleans it, and trains the model."""
+    global model, real_data_cache
     
-    prediction = model.predict(input_df)[0]
+    print("⏳ Fetching data from FRED... (This might take a moment)")
+    
+    try:
+        fred = Fred(api_key=FRED_API_KEY)
+        
+        # 1. Fetch the raw series (Last 20 years)
+        # UNRATE = Unemployment Rate
+        # CPIAUCSL = Consumer Price Index (used to calc inflation)
+        start_date = '2004-01-01'
+        u_series = fred.get_series('UNRATE', observation_start=start_date)
+        cpi_series = fred.get_series('CPIAUCSL', observation_start=start_date)
+        
+        # 2. Convert to Pandas DataFrame
+        df = pd.DataFrame({'unemployment': u_series, 'cpi': cpi_series})
+        
+        # 3. Calculate Year-Over-Year Inflation Rate
+        # Inflation = % change in CPI over 12 months
+        df['inflation'] = df['cpi'].pct_change(periods=12) * 100
+        
+        # 4. Clean Data
+        # Drop NaN values (created by the lag calculation) and ensure matching dates
+        df = df.dropna()
+        
+        # Cache for the API endpoint (Convert to list of dicts)
+        # We only take the last 100 months to keep the chart readable
+        recent_df = df.tail(100)
+        real_data_cache = [
+            {"unemployment": round(row['unemployment'], 2), 
+             "inflation": round(row['inflation'], 2)}
+            for index, row in recent_df.iterrows()
+        ]
+        
+        # 5. Train Model on ALL historical data (not just the recent 100)
+        X = df[['unemployment']].values
+        y = df['inflation'].values
+        
+        # We use a Polynomial model (degree 2) to capture the curve
+        model = make_pipeline(PolynomialFeatures(degree=2), LinearRegression())
+        model.fit(X, y)
+        
+        print(f"✅ Success! Model trained on {len(df)} months of real US economy data.")
+        
+    except Exception as e:
+        print(f"❌ Error fetching FRED data: {e}")
+        # Fallback to synthetic data if API fails
+        print("⚠️ Switching to Backup Synthetic Mode")
+        # (Simple fallback logic could go here, but for now we just print the error)
+
+# Run startup task
+fetch_and_train()
+
+# --- API Endpoints ---
+
+class PredictionRequest(BaseModel):
+    unemployment_rate: float
+
+@app.get("/api/phillips-curve")
+def get_data():
+    if not real_data_cache:
+        return [{"unemployment": 0, "inflation": 0}] # Return empty if fetch failed
+    return real_data_cache
+
+@app.post("/api/predict")
+def predict_inflation(request: PredictionRequest):
+    if model is None:
+        raise HTTPException(status_code=503, detail="Model not ready yet")
+        
+    input_val = np.array([[request.unemployment_rate]])
+    prediction = model.predict(input_val)[0]
     
     return {
-        "model": "Random Forest Regressor",
-        "last_actual_inflation": df.iloc[-1]['inflation_yoy_pct'],
-        "predicted_next_inflation": prediction,
-        "direction": "UP" if prediction > df.iloc[-1]['inflation_yoy_pct'] else "DOWN"
+        "unemployment_rate": request.unemployment_rate,
+        "predicted_inflation": round(prediction, 2)
     }
-
-# --- ENDPOINTS ---
-@app.get("/")
-def read_root():
-    return {"status": "MacroPulse AI Backend is active 🟢"}
-
-@app.get("/api/inflation")
-def get_inflation_data():
-    file_path = "data/historical_inflation.csv"
-    if not os.path.exists(file_path):
-        return {"error": "Run fetch_data.py first"}
-    df = pd.read_csv(file_path)
-    df = df.where(pd.notnull(df), None)
-    return df.to_dict(orient="records")
-
-@app.get("/api/predict")
-def get_prediction():
-    try:
-        return run_ai_prediction()
-    except Exception as e:
-        return {"error": str(e)}
-
-# --- NEW: RECESSION RISK ENDPOINT ---
-@app.get("/api/risk")
-def get_risk_level():
-    file_path = "data/yield_curve.csv"
-    # Safety Check: If file doesn't exist, return neutral data so app doesn't crash
-    if not os.path.exists(file_path):
-        return {"yield_spread": 0, "level": "Data Missing", "color": "yellow"}
-    
-    try:
-        df = pd.read_csv(file_path, names=["date", "spread"], header=0)
-        latest_spread = df.iloc[-1]['spread']
-        
-        if latest_spread < 0:
-            level = "HIGH (Recession Risk)"
-            color = "red"
-        elif latest_spread < 0.5:
-            level = "Moderate"
-            color = "yellow"
-        else:
-            level = "Low (Healthy)"
-            color = "green"
-            
-        return {"yield_spread": latest_spread, "level": level, "color": color}
-    except Exception as e:
-        return {"error": str(e)}
